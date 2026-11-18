@@ -1,0 +1,822 @@
+﻿Міністерство освіти і науки України
+Харківський національний університет радіоелектроніки
+Факультет комп’ютерних наук
+Катедра програмної інженерії
+     
+     
+     
+     
+     
+     
+ЗВІТ
+до практичного завдання № 2
+з дисципліни «Аналіз та рефакторинг коду»
+на тему: «Методи рефакторингу коду програмного забезпечення: Convert Procedural Design to Objects, Replace Type Code with Subclasses, Replace Record with Data Class»
+     
+     
+     
+     
+Виконала:
+ст. гр. ПЗПІ-24-5
+Андренко Анна СергіївнаПеревірив:
+ст. викладач катедри ПІ
+Сокорчук Ігор Петрович     
+     
+     
+     
+     
+Харків 2026
+
+1 ІСТОРІЯ ЗМІН
+     
+     
+     У таблиці 1.1 наведено відомості про підготовку документа.
+     
+      Таблиця 1.1 – Історія змін звіту
+№ДатаВерсія звітуОпис змін та виправлень117.11.20261.0Підготовлено звіт за підсумками практичного завдання № 2 на основі фінальної презентації.     
+     
+
+2 ЗАВДАННЯ
+     
+     
+     Тема роботи. Методи рефакторингу коду програмного забезпечення. : Convert Procedural Design to Objects, Replace Type Code with Subclasses, Replace Record with Data Class.
+     Мета роботи. Навчитися ідентифікувати проблеми у власному програмному коді та усувати їх за допомогою методів рефакторингу з книги М. Фаулера «Refactoring: Improving the Design of Existing Code»; показати код до і після застосування кожного методу та пояснити отримані переваги.
+     Відповідно до методичних вказівок необхідно обрати три методи рефакторингу, навести код без рефакторингу та із застосуванням методу на прикладі власного коду, описати проблему, яку вирішує метод, і пояснити переваги результату.
+     Об’єктом рефакторингу є код лабораторної роботи 1 з дисципліни «Паралельне програмування», написаної мовою C++: вимірювання таймерів, множення матриць у режимах Debug і Release та збереження результатів у CSV-файли.
+      У межах роботи поставлено такі завдання:
+   – пояснити поняття рефакторингу та обґрунтувати вибір методів;
+   – застосувати метод Convert Procedural Design to Objects до структури MatrixTiming і функцій обробки її результатів;
+   – застосувати метод Replace Type Code with Subclasses до таблиці таймерів TimerResult;
+   – застосувати метод Replace Record with Data Class до запису SavedRow та розбору CSV-рядка;
+   – перевірити збереження зовнішньої поведінки коду після змін;
+   – узагальнити результати та оформити слайди презентації як додаток до звіту.
+     Ілюстративні приклади взято з фінальної презентації; повні версії коду до і після рефакторингу наведено в додатку В. 
+3 ОПИС ВИКОНАНОЇ РОБОТИ
+     3.1 Поняття рефакторингу та вибір методів
+     
+     
+     Рефакторинг – це зміна внутрішньої структури програмного коду, яка покращує його зрозумілість і підтримуваність без зміни зовнішньої поведінки програми [1, 2]. Р. Мартін у книзі «Clean Code» наголошує, що чистий код має бути легким для читання та зміни, а підтримка такого стану потребує постійного вдосконалення структури [3, 4]. Тому рефакторинг доцільно виконувати малими кроками й перевіряти, що результат роботи програми не змінився.
+     Для роботи з переліку методів, наданого викладачем, обрано три методи, що не мають закріплених за іншими студентами прізвищ. Критерієм вибору було не формальне виконання завдання, а наявність у власному коді реальної проблеми, яку метод вирішує. Відповідність методів фрагментам коду наведено в таблиці 3.1.
+      Таблиця 3.1 – Обрані методи рефакторингу та фрагменти коду lab1
+№Метод ФаулераФрагмент коду та проблема1Convert Procedural Design to Objects (перетворення процедурного дизайну на об’єкти)Структура MatrixTiming містить лише дані, а логіка винесена у функції saveMatrixResult() і displayMatrixResult()2Replace Type Code with Subclasses (заміна кодування типу підкласами)Рядок name у TimerResult визначає поведінку, яка реалізована ланцюжком if3Replace Record with Data Class (заміна запису класом даних)Запис SavedRow із відкритими полями; розбір CSV-рядка розміщено у лямбді load()     
+     Структуру викладу для кожного методу узгоджено з методичними вказівками: опис проблеми, код до рефакторингу, пояснення методу, код після рефакторингу та переваги. 
+     Слайди з відповідним матеріалом наведено в додатку Б (рисунки Б.3–Б.12).
+     
+     
+     3.2 Метод 1: Convert Procedural Design to Objects
+     
+     
+     3.2.1 Опис проблеми
+     У вихідному коді результат вимірювання множення матриць зберігається в структурі MatrixTiming, усі поля якої відкриті. Уся поведінка винесена у вільні функції saveMatrixResult() та displayMatrixResult(): дані й операції над ними розділені (слайд 4). Вираз співвідношення часу r.rawSec > 0 ? r.objectsSec / r.rawSec : 0.0 повторюється в обох функціях, а displayMatrixResult() крім виведення ще зберігає файл і перевіряє збіг результатів. Зміна правила обчислення співвідношення потребує правок у кількох місцях, а будь-яка частина програми може змінити поля структури напряму.
+Лістинг 3.1 – MatrixTiming і процедури до рефакторингу (слайд 4)
+ 1  struct MatrixTiming {
+ 2      std::size_t n;
+ 3      std::string type;
+ 4      double rawSec;
+ 5      double objectsSec;
+ 6      int repetitions;
+ 7      bool equal;
+ 8      long double sum;
+ 9  };
+10  void saveMatrixResult(const MatrixTiming& r) {
+11      // ... відкриття CSV, заголовок ...
+12      const std::uint64_t n3 =
+13          static_cast<std::uint64_t>(r.n) * r.n * r.n;
+14      out << buildMode() << ',' << r.type << ','
+15          << r.n << ',' << n3 << ',' << r.rawSec << ','
+16          << (r.rawSec > 0
+17              ? r.objectsSec / r.rawSec : 0.0)
+18          << ... << '\n';
+19  }
+20  void displayMatrixResult(const MatrixTiming& r) {
+21      std::cout << ... << "Object/raw ratio: "
+22          << (r.rawSec > 0
+23              ? r.objectsSec / r.rawSec : 0.0)
+24          << ... << '\n';
+25      saveMatrixResult(r);
+26      if (!r.equal)
+27          throw std::runtime_error("...");
+28  }
+     
+     
+     
+     3.2.2 Застосування методу
+     Метод Convert Procedural Design to Objects перетворює записи даних на об’єкти, а процедури, що працюють із цими даними, – на методи цих об’єктів [1]. Для MatrixTiming це означає: структуру замінено класом із приватними полями; функції збереження та виведення стали методами save() і display(); дубльований вираз винесено в метод ratio(); обчислення n³ – у nCubed() (слайд 5).
+Лістинг 3.2 – Клас MatrixTiming (слайд 5)
+ 1  class MatrixTiming {
+ 2  public:
+ 3      MatrixTiming(std::size_t n, std::string type,
+ 4                   double rawSec, double objectsSec,
+ 5                   int repetitions, bool equal,
+ 6                   long double sum);
+ 7      bool equal() const;     // та інші getter-и
+ 8      double ratio() const {
+ 9          return rawSec_ > 0 ? objectsSec_ / rawSec_ : 0.0;
+10      }
+11      std::uint64_t nCubed() const;
+12      void save() const;      // було saveMatrixResult(r)
+13      void display() const;   // було displayMatrixResult(r)
+14  private:
+15      std::size_t n_;     std::string type_;
+16      double rawSec_;     double objectsSec_;
+17      int repetitions_;   bool equal_;
+18      long double sum_;
+19  };
+     
+Лістинг 3.3 – Реалізація display() і save() (слайд 6)
+ 1  void MatrixTiming::display() const {
+ 2      std::cout << ... << "Object/raw ratio: "
+ 3                << ratio() << ... << '\n';
+ 4      save();
+ 5      if (!equal_)
+ 6          throw std::runtime_error("...");
+ 7  }
+ 8  void MatrixTiming::save() const {
+ 9      // ... відкриття CSV, заголовок ...
+10      out << buildMode() << ',' << type_ << ','
+11          << n_ << ',' << nCubed() << ',' << rawSec_
+12          << ',' << ratio() << ... << '\n';
+13  }
+     
+     Клієнтський код змінюється мінімально: виклик функції замінюється викликом методу, а доступ до полів – викликом методів доступу.
+Лістинг 3.4 – Клієнтський код до рефакторингу (слайд 6)
+1  displayMatrixResult(r);
+2  if (!r.equal) throw ...;
+3  std::cout << r.rawSec << ...;
+     
+Лістинг 3.5 – Клієнтський код після рефакторингу (слайд 6)
+1  r.display();
+2  if (!r.equal()) throw ...;
+3  std::cout << r.rawSec() << ...;
+     
+     3.2.3 Переваги
+     Дані та операції над ними зібрано в одному класі, поля інкапсульовано. Вираз співвідношення існує в одному місці, тому правило обчислення змінюється одним виправленням. 
+     Порядок дій display() збережено: виведення, збереження в CSV, перевірка збігу результатів із викиданням виняткової ситуації.
+     
+     
+     3.3 Метод 2: Replace Type Code with Subclasses
+     
+     
+     3.3.1 Опис проблеми
+     Таблиця таймерів у задачі task2 складається зі значень TimerResult. Рядок name виконує роль коду типу: від нього залежить, як мінімальний крок таймера перераховується в наносекунди (слайд 7). 
+     Для time та omp_get_wtime значення множиться на 10⁹, для clock ділиться на CLOCKS_PER_SEC, для двох функцій FileTime множиться на 100, для GetTickCount – на 10⁶, для QueryPerformanceCounter враховується частота, а для chrono значення береться без змін. 
+     Назви таймерів дублюються в таблиці та в ланцюжку умов, а новий таймер вимагає нової гілки if.
+Лістинг 3.6 – Ланцюжок умов за назвою таймера (слайд 7)
+ 1  long double ns = -1;
+ 2  if (e.minStep >= 0) {
+ 3      const std::string name = e.name;
+ 4      if (name == "time" || name == "omp_get_wtime")
+ 5          ns = e.minStep * 1.0e9L;
+ 6      else if (name == "clock")
+ 7          ns = e.minStep * 1.0e9L / CLOCKS_PER_SEC;
+ 8      else if (name == "GetSystemTimeAsFileTime" ||
+ 9               name == "GetSystemTimePreciseAsFileTime")
+10          ns = e.minStep * 100.0L;
+11      else if (name == "GetTickCount")
+12          ns = e.minStep * 1.0e6L;
+13      else if (name == "QueryPerformanceCounter")
+14          ns = e.minStep * 1.0e9L / freq;
+15      else if (name == "chrono::high_resolution_clock")
+16          ns = e.minStep;
+17  }
+     
+Лістинг 3.7 – Запис TimerResult до рефакторингу (слайд 7)
+1  struct TimerResult {
+2      const char* name;
+3      const char* header;
+4      const char* unit;
+5      long double minStep;
+6      long double inNanoseconds;
+7  };
+     
+     3.3.2 Застосування методу
+     Тип таймера не змінюється протягом життя об’єкта, а поведінка залежить від нього. 
+     У такому випадку Фаулер рекомендує замінити код типу підкласами [1, 5]. Для кожного значення коду створено підклас базового класу TimerResult: SecondsTimer, ClockTimer, FileTimeTimer, TickCountTimer, QpcTimer, ChronoTimer і TscTimer (слайд 8). 
+     Базовий клас зберігає дані та має віртуальний метод convert(); метод inNanoseconds() приховує перевірку minStep >= 0.
+Лістинг 3.8 – Базовий клас і підклас SecondsTimer (слайд 8)
+ 1  class TimerResult {
+ 2  public:
+ 3      TimerResult(const char* name, const char* header,
+ 4                  const char* unit, long double minStep);
+ 5      virtual ~TimerResult() = default;
+ 6      // name(), header(), unit(), minStep() - getter-и
+ 7      long double inNanoseconds() const {
+ 8          return minStep_ >= 0 ? convert(minStep_) : -1;
+ 9      }
+10  protected:
+11      virtual long double convert(long double step) const = 0;
+12  private:
+13      const char* name_;  const char* header_;
+14      const char* unit_;  long double minStep_;
+15  };
+16  
+17  class SecondsTimer : public TimerResult {
+18      using TimerResult::TimerResult;
+19      long double convert(long double s) const override
+20          { return s * 1.0e9L; }
+21  };
+     
+     Підклас QpcTimer додатково зберігає частоту лічильника, тому має власний конструктор. Решта підкласів успадковує конструктор базового класу. Для __rdtsc у вихідному коді гілки не було, і значення лишалося рівним −1; щоб зберегти виведення «n/a», підклас TscTimer повертає −1.
+Лістинг 3.9 – QpcTimer та інші підкласи (слайд 9)
+ 1  class QpcTimer : public TimerResult {
+ 2  public:
+ 3      QpcTimer(/* як TimerResult */, long double freq);
+ 4  protected:
+ 5      long double convert(long double s) const override
+ 6          { return s * 1.0e9L / freq_; }
+ 7  private:
+ 8      long double freq_;
+ 9  };
+10  // ClockTimer, FileTimeTimer, TickCountTimer,
+11  // ChronoTimer - як SecondsTimer; TscTimer -> -1
+     
+Лістинг 3.10 – Таблиця таймерів і цикл виведення після рефакторингу (слайд 9)
+ 1  r = {
+ 2    std::make_shared<SecondsTimer>(
+ 3      "time", "time.h", "seconds", ...),
+ 4    std::make_shared<QpcTimer>(
+ 5      "QueryPerformanceCounter",
+ 6      "windows.h", "QPC ticks", ..., freq),
+ 7    // ... інші таймери
+ 8  };
+ 9  for (const auto& e : r) {
+10      const long double ns = e->inNanoseconds();  // без умов
+11      // ...
+12  }
+     3.3.3 Переваги та ціна
+     Умов за назвою немає; новий таймер додається новим підкласом без змін у циклі виведення, а формула кожного таймера лежить поруч із його даними. Ціною є збільшення обсягу коду: з’явилися базовий клас, сім підкласів і покажчики shared_ptr замість значень у векторі. Якби тип таймера мінявся під час роботи програми, доцільніше було б застосувати Replace Type Code with State/Strategy; тут цього не потрібно.
+     
+     
+     3.4 Метод 3: Replace Record with Data Class
+     
+     
+     3.4.1 Опис проблеми
+     У задачі task8 результати вимірювань зчитуються з CSV-файлів у std::map. Запис SavedRow має відкриті поля raw, objects та checksum, а розбір рядка виконується прямо в лямбді load(): чотири рядкові змінні, std::getline, stoull і stod (слайд 10). Розмір n існує окремо як ключ map і не входить до запису. Рядок CSV є записом без поведінки, а знання про формат рядка розкидане за місцем використання.
+Лістинг 3.11 – SavedRow і розбір рядка у лямбді до рефакторингу (слайд 10)
+ 1  struct SavedRow {
+ 2      double raw = 0;
+ 3      double objects = 0;
+ 4      std::string checksum;
+ 5  };
+ 6  // task8_releaseInstructions(), лямбда load():
+ 7  std::string nStr, rawStr, objStr, checksumStr;
+ 8  if (!std::getline(in, nStr, ',') ||
+ 9      !std::getline(in, rawStr, ',') ||
+10      !std::getline(in, objStr, ',') ||
+11      !std::getline(in, checksumStr))
+12      throw std::runtime_error("Invalid CSV row");
+13  std::size_t n = std::stoull(nStr);
+14  rows[n] = { std::stod(rawStr),
+15              std::stod(objStr), checksumStr };
+     
+     3.4.2 Застосування методу
+     Метод Replace Record with Data Class замінює запис класом даних із приватними полями та методами доступу [1]. Створено клас SavedRow зі статичним методом fromCsv(), у який перенесено розбір рядка (слайд 11). Конструктор за замовчуванням залишено, щоб зберегти запис rows[...] = ... у std::map. Розмір n тепер входить до запису.
+Лістинг 3.12 – Клас SavedRow (слайд 11)
+ 1  class SavedRow {
+ 2  public:
+ 3      SavedRow() = default;
+ 4      SavedRow(std::size_t n, double raw,
+ 5               double objects, std::string checksum);
+ 6      static SavedRow fromCsv(const std::string& line);
+ 7  
+ 8      std::size_t n() const { return n_; }
+ 9      double raw() const { return raw_; }
+10      // objects(), checksum() - аналогічно
+11  private:
+12      std::size_t n_ = 0;
+13      double raw_ = 0, objects_ = 0;
+14      std::string checksum_;
+15  };
+     
+Лістинг 3.13 – Метод fromCsv() (слайд 11)
+1  SavedRow SavedRow::fromCsv(const std::string& line) {
+2      std::istringstream in(line);
+3      std::string nStr, rawStr, objStr, checksumStr;
+4      // ... getline x4, інакше
+5      //     runtime_error("Invalid CSV row")
+6      return SavedRow(std::stoull(nStr), std::stod(rawStr),
+7                      std::stod(objStr), checksumStr);
+8  }
+     
+Лістинг 3.14 – Клієнтський код до рефакторингу (слайд 12)
+1  std::size_t n = std::stoull(nStr);
+2  rows[n] = { std::stod(rawStr),
+3              std::stod(objStr), checksumStr };
+4  if (d.checksum != r.checksum) { ... }
+5  print("Raw", d.raw, r.raw);
+6  print("Objects", d.objects, r.objects);
+     
+Лістинг 3.15 – Клієнтський код після рефакторингу (слайд 12)
+1  SavedRow row = SavedRow::fromCsv(line);
+2  rows[row.n()] = row;
+3  
+4  if (d.checksum() != r.checksum()) { ... }
+5  print("Raw", d.raw(), r.raw());
+6  print("Objects", d.objects(), r.objects());
+     
+     3.4.3 Переваги
+     Поля інкапсульовано, клієнт працює з інтерфейсом класу. Розбір і перевірка рядка зосереджені в одному методі fromCsv(). Поведінку збережено: дублікати n перезаписуються, порожні рядки пропускаються, неповний рядок викликає runtime_error («Invalid CSV row»). Метод не прискорює обчислення, а лише покращує структуру даних.
+     
+     
+     3.5 Порівняння результатів і перевірка
+     
+     
+     Підсумкове порівняння стану коду до і після рефакторингу подано в таблиці 3.2 (слайд 13).
+      Таблиця 3.2 – Порівняння коду до і після рефакторингу
+МетодБулоСталоConvert Procedural Design to Objectsstruct і вільні функціїКлас MatrixTiming із методами save() і display()Replace Type Code with SubclassesРядок name як код типу та ланцюжок ifПідкласи TimerResult із віртуальним методом convert()Replace Record with Data Classstruct SavedRow, розбір у лямбдіКлас SavedRow із fromCsv() і методами доступу     
+     Щоб перевірити збереження поведінки, для кожного методу підготовлено окрему тестову програму, що відтворює відповідний фрагмент коду в двох варіантах: до і після рефакторингу (додаток В). Програми зібрано компілятором g++ зі стандартом C++14 та прапорами -Wall -Wextra, виведення в консоль і CSV-файли двох варіантів порівняно. Результати перевірки наведено в таблиці 3.3.
+      Таблиця 3.3 – Результати перевірки еквівалентності
+МетодТестові даніРезультат1. MatrixTiming3 набори даних, зокрема rawSec = 0 та equal = falseВиведення та CSV збігаються2. TimerResult63 випадки: 7 значень кроку × 9 таймерів, ще одна частота QPC; зокрема −1, 0 та __rdtscВиведення збігається; для __rdtsc лишається «n/a» (−1)3. SavedRow7 сценаріїв: нормальний файл, дублікати n, порожні рядки, неповний рядок, порожній файл, некоректне число, відсутній файлВиведення збігається, зокрема тексти виняткових ситуацій     
+     Обмеження перевірки. Тестові програми відтворюють змінені фрагменти, але не містять усього проєкту lab1: функції WinAPI та інструкції OpenMP у них не використовуються. Тому повну програму після рефакторингу необхідно окремо зібрати й запустити у Visual Studio. Швидкодію не вимірювали, тому висновки стосуються лише читабельності, структури та збереження результатів.
+     
+     
+     3.6 Вплив на архітектуру та інструменти
+     
+     
+     Після рефакторингу в коді з’явилися класи з чіткою відповідальністю: MatrixTiming володіє даними вимірювання та їх виведенням, ієрархія TimerResult інкапсулює перерахунок кроку таймера, SavedRow відповідає за розбір запису CSV. Залежність від рядків-кодів зникла, розбір формату зосереджений в одному методі, а розширення (новий таймер) не потребує змін у клієнтському коді.
+     Сучасні середовища розробки (Visual Studio, CLion, ReSharper C++) автоматизують прості перетворення: перейменування, виділення методу, переміщення члена класу. Структурні зміни, як у цій роботі, виконано вручну, а коректність перевірено порівнянням результатів. Як альтернативу розглянуто Self Encapsulate Field та Separate Domain from Presentation; наступним логічним кроком після введення підкласів може бути Replace Conditional with Polymorphism для решти умов у коді.
+     
+
+4 ВИСНОВКИ
+     
+     
+     У практичному завданні № 2 проаналізовано фрагменти власного коду лабораторної роботи 1з дисципліни «Паралельне програмування» мовою C++ та застосовано три методи рефакторингу М. Фаулера.
+     Метод Convert Procedural Design to Objects об’єднав дані результатів множення матриць і операції над ними в класі MatrixTiming; дубльований вираз співвідношення тепер міститься в методі ratio(). Метод Replace Type Code with Subclasses замінив рядковий код типу таймера підкласами TimerResult, тому ланцюжок умов зник, а новий таймер додається без змін у циклі виведення. Метод Replace Record with Data Class інкапсулював запис SavedRow і зосередив розбір CSV-рядка в методі fromCsv().
+     Перетворення покращують читабельність, розширюваність і підтримуваність коду. На тестових даних виведення та CSV-файли до і після рефакторингу збігаються (3 набори даних, 63 випадки та 7 сценаріїв), однак повну програму із WinAPI та OpenMP слід додатково перевірити у Visual Studio. Ціною рефакторингу, зокрема другого методу, є збільшення обсягу коду. Швидкодію програми не оцінювали.
+     
+
+     5 ВИКОРИСТАНІ ДЖЕРЕЛА
+     
+     
+1. Fowler M. Refactoring: Improving the Design of Existing Code. 2nd ed. Boston : Addison-Wesley Professional, 2018. URL: https://martinfowler.com/books/refactoring.html (дата звернення: 18.11.2026).
+2. Fowler M. Refactoring: Improving the Design of Existing Code. Reading : Addison-Wesley, 1999.
+3. Мартін Р. Чистий код: створення і рефакторинг за допомогою AGILE. Харків : Фабула, 2019. 416 с.
+4. Martin R. C. Clean Code: A Handbook of Agile Software Craftsmanship. Upper Saddle River : Prentice Hall, 2008. URL: https://www.informit.com/store/clean-code-a-handbook-of-agile-software-craftsmanship-9780132350884 (дата звернення: 18.11.2026).
+5. Replace Type Code with Subclasses. Refactoring.Guru. URL: https://refactoring.guru/replace-type-code-with-subclasses  (дата звернення: 18.11.2026).
+6. Власний вихідний код лабораторної роботи 1 ParP (C++).
+     
+
+ДОДАТОК А
+Відеозапис доповіді
+     
+     Посилання на відеозапис доповіді: https://youtu.be/H2a__ye7aEk 
+     Хронологічний опис відеозапису:
+     00:00 – Вступ
+     01:21 – Метод 1: Convert Procedural Design to Objects
+     02:44 – Метод 2: Replace Type Code with Subclasses
+     04:30 – Метод 3: Replace Record with Data Class
+     05:40 – Порівняння та перевірка після рефакторингу
+     06:20 – Висновки
+
+ДОДАТОК Б
+Слайди презентації
+     
+
+
+Рисунок Б.1 – Титульний слайд: тема, виконавець і перевіряючий
+
+
+
+Рисунок Б.2 – Зміст презентації
+     
+
+ДОДАТОК Б (продовження)
+     
+
+
+Рисунок Б.3 – Рефакторинг і вибір методів
+
+
+
+Рисунок Б.4 – Convert Procedural Design to Objects: проблема
+     
+
+ДОДАТОК Б (продовження)
+     
+
+
+Рисунок Б.5 – Convert Procedural Design to Objects: клас MatrixTiming
+
+
+
+Рисунок Б.6 – Convert Procedural Design to Objects: результат
+     
+
+ДОДАТОК Б (продовження)
+     
+
+
+Рисунок Б.7 – Replace Type Code with Subclasses: проблема
+
+
+
+Рисунок Б.8 – Replace Type Code with Subclasses: підкласи TimerResult
+     
+
+ДОДАТОК Б (продовження)
+     
+
+
+Рисунок Б.9 – Replace Type Code with Subclasses: результат
+
+
+
+Рисунок Б.10 – Replace Record with Data Class: проблема
+     
+
+ДОДАТОК Б (продовження)
+     
+
+
+Рисунок Б.11 – Replace Record with Data Class: клас SavedRow
+
+
+
+Рисунок Б.12 – Replace Record with Data Class: результат
+     
+
+ДОДАТОК Б (продовження)
+     
+
+
+Рисунок Б.13 – Порівняння результатів і перевірка
+
+
+
+Рисунок Б.14 – Висновки
+     
+
+ДОДАТОК Б (продовження)
+     
+
+
+Рисунок Б.15 – Використані джерела
+     
+
+ДОДАТОК В
+Програмний код
+     
+     Код до і після рефакторингу всіх трьох методів зібрано в одному файлі code-examples-refactoring-methods.cpp у просторах імен m1_before / m1_after, m2_before / m2_after, m3_before / m3_after. Файл збирається командою g++ -std=c++14 -Wall -Wextra і запускається з параметром before або after; виведення двох запусків порівнюється командою diff. Шлях до каталогу в GitHub-репозиторії: https://github.com/NureAndrenkoAnna/ark-pzpi-24-5-andrenko-anna/blob/main/Pract2/pzpi-24-5-andrenko-anna-pract2. 
+     
+В.1 Метод 1: Convert Procedural Design to Objects (MatrixTiming)
+Файл: pzpi-24-5-andrenko-anna-method1-convert-procedural-design-to-objects.cpp.
+Посилання на файл програмного коду в GitHub:
+https://github.com/NureAndrenkoAnna/ark-pzpi-24-5-andrenko-anna/blob/main/Pract2/pzpi-24-5-andrenko-anna-pract2/code-examples-refactoring-methods.cpp#L31-L73 
+Лістинг В.1 – Код до рефакторингу (метод 1)
+ 1  struct MatrixTiming {
+ 2      std::size_t n;
+ 3      std::string type;
+ 4      double rawSec;
+ 5      double objectsSec;
+ 6      int repetitions;
+ 7      bool equal;
+ 8      long double sum;
+ 9  };
+10  void saveMatrixResult(const MatrixTiming& r) {
+11      const char* filename = "lab1_matrix_results.csv";
+12      bool isEmpty = true;
+13      {
+14          std::ifstream in(filename, std::ios::binary | std::ios::ate);
+15          if (in && in.tellg() > 0) isEmpty = false;
+16      }
+17      std::ofstream out(filename, std::ios::app);
+18      if (!out) {
+19          std::cerr << "Could not write " << filename << '\n';
+20          return;
+21      }
+22      if (isEmpty)
+23          out << "mode,type,n,n_cubed,raw_seconds,object_seconds,object_over_raw,
+                repetitions,equal,checksum\n";
+24      const std::uint64_t n3 = static_cast<std::uint64_t>(r.n) * r.n * r.n;
+25      out << buildMode() << ',' << r.type << ',' << r.n << ',' << n3 << ','
+26          << std::setprecision(14) << r.rawSec << ',' << r.objectsSec << ','
+27          << (r.rawSec > 0 ? r.objectsSec / r.rawSec : 0.0) << ','
+28          << r.repetitions << ',' << (r.equal ? "YES" : "NO") << ','
+29          << r.sum << '\n';
+30  }
+31  void displayMatrixResult(const MatrixTiming& r) {
+32      std::cout << "\nMode: " << buildMode() << ", type: " << r.type << ", N=" <<
+            r.n
+33                << ", repetitions=" << r.repetitions << '\n'
+34                << std::fixed << std::setprecision(6)
+35                << "Raw arrays:      " << r.rawSec << " s\n"
+36                << "Matrix objects:  " << r.objectsSec << " s\n"
+37                << "Object/raw ratio: " << (r.rawSec > 0 ? r.objectsSec /
+                      r.rawSec : 0.0) << '\n'
+38                << "Results identical: " << (r.equal ? "YES" : "NO") << '\n'
+39                << "Checksum: " << std::setprecision(0) << r.sum << '\n';
+40      saveMatrixResult(r);
+41      if (!r.equal)
+42          throw std::runtime_error("Raw/object results are different");
+43  }
+     
+Посилання на файл програмного коду в GitHub:
+https://github.com/NureAndrenkoAnna/ark-pzpi-24-5-andrenko-anna/blob/main/Pract2/pzpi-24-5-andrenko-anna-pract2/code-examples-refactoring-methods.cpp#L89-L151
+Лістинг В.2 – Код після рефакторингу (метод 1)
+ 1  class MatrixTiming {
+ 2  public:
+ 3      MatrixTiming(std::size_t n, std::string type,
+ 4                   double rawSec, double objectsSec,
+ 5                   int repetitions, bool equal, long double sum)
+ 6          : n_(n), type_(std::move(type)), rawSec_(rawSec),
+ 7            objectsSec_(objectsSec), repetitions_(repetitions),
+ 8            equal_(equal), sum_(sum) {}
+ 9  
+10      bool equal() const { return equal_; }
+11      double ratio() const {
+12          return rawSec_ > 0 ? objectsSec_ / rawSec_ : 0.0;
+13      }
+14      std::uint64_t nCubed() const {
+15          return static_cast<std::uint64_t>(n_) * n_ * n_;
+16      }
+17      void save() const;
+18      void display() const;
+19  
+20  private:
+21      std::size_t n_;
+22      std::string type_;
+23      double rawSec_;
+24      double objectsSec_;
+25      int repetitions_;
+26      bool equal_;
+27      long double sum_;
+28  };
+29  
+30  void MatrixTiming::save() const {
+31      const char* filename = "lab1_matrix_results.csv";
+32      bool isEmpty = true;
+33      {
+34          std::ifstream in(filename, std::ios::binary | std::ios::ate);
+35          if (in && in.tellg() > 0) isEmpty = false;
+36      }
+37      std::ofstream out(filename, std::ios::app);
+38      if (!out) {
+39          std::cerr << "Could not write " << filename << '\n';
+40          return;
+41      }
+42      if (isEmpty)
+43          out << "mode,type,n,n_cubed,raw_seconds,object_seconds,object_over_raw,
+                repetitions,equal,checksum\n";
+44      out << buildMode() << ',' << type_ << ',' << n_ << ',' << nCubed() << ','
+45          << std::setprecision(14) << rawSec_ << ',' << objectsSec_ << ','
+46          << ratio() << ','
+47          << repetitions_ << ',' << (equal_ ? "YES" : "NO") << ','
+48          << sum_ << '\n';
+49  }
+50  
+51  void MatrixTiming::display() const {
+52      std::cout << "\nMode: " << buildMode() << ", type: " << type_ << ", N=" <<
+            n_
+53                << ", repetitions=" << repetitions_ << '\n'
+54                << std::fixed << std::setprecision(6)
+55                << "Raw arrays:      " << rawSec_ << " s\n"
+56                << "Matrix objects:  " << objectsSec_ << " s\n"
+57                << "Object/raw ratio: " << ratio() << '\n'
+58                << "Results identical: " << (equal_ ? "YES" : "NO") << '\n'
+59                << "Checksum: " << std::setprecision(0) << sum_ << '\n';
+60      save();
+61      if (!equal_)
+62          throw std::runtime_error("Raw/object results are different");
+63  }
+     
+В.2 Метод 2: Replace Type Code with Subclasses (TimerResult)
+Посилання на файл програмного коду в GitHub:
+https://github.com/NureAndrenkoAnna/ark-pzpi-24-5-andrenko-anna/blob/main/Pract2/pzpi-24-5-andrenko-anna-pract2/code-examples-refactoring-methods.cpp#L167-L209 
+Лістинг В.3 – Код до рефакторингу (метод 2, простір імен m2_before)
+ 1  struct TimerResult {
+ 2      const char* name;
+ 3      const char* header;
+ 4      const char* unit;
+ 5      long double minStep;
+ 6      long double inNanoseconds;
+ 7  };
+ 8  static long double freqG;
+ 9  static long double nsOf(const TimerResult& e) {
+10      const long double freq = freqG;
+11      long double ns = -1;
+12      if (e.minStep >= 0) {
+13          const std::string name = e.name;
+14          if (name == "time" || name == "omp_get_wtime")
+15              ns = e.minStep * 1.0e9L;
+16          else if (name == "clock")
+17              ns = e.minStep * 1.0e9L / CLOCKS_PER_SEC;
+18          else if (name == "GetSystemTimeAsFileTime" || name ==
+                "GetSystemTimePreciseAsFileTime")
+19              ns = e.minStep * 100.0L;
+20          else if (name == "GetTickCount")
+21              ns = e.minStep * 1.0e6L;
+22          else if (name == "QueryPerformanceCounter")
+23              ns = e.minStep * 1.0e9L / freq;
+24          else if (name == "chrono::high_resolution_clock")
+25              ns = e.minStep;
+26      }
+27      return ns;
+28  }
+29  static void run(long double freq, long double s) {
+30      freqG = freq;
+31      const std::vector<TimerResult> r = {
+32          {"time", "time.h", "seconds", s, 0},
+33          {"clock", "time.h", "clock ticks", s, 0},
+34          {"GetSystemTimeAsFileTime", "windows.h", "100 ns ticks", s, 0},
+35          {"GetSystemTimePreciseAsFileTime", "windows.h", "100 ns ticks", s, 0},
+36          {"GetTickCount", "windows.h", "milliseconds", s, 0},
+37          {"__rdtsc", "intrin.h", "TSC ticks/cycles", s, 0},
+38          {"QueryPerformanceCounter", "windows.h", "QPC ticks", s, 0},
+39          {"chrono::high_resolution_clock", "chrono", "nanoseconds", s, 0},
+40          {"omp_get_wtime", "omp.h", "seconds", s, 0}};
+41      for (auto e : r)
+42          std::printf("%s|%s|%s|%.6f|%.9Lf\n", e.name, e.header, e.unit,
+                static_cast<double>(e.minStep), nsOf(e));
+43  }
+     
+Посилання на файл програмного коду в GitHub:
+https://github.com/NureAndrenkoAnna/ark-pzpi-24-5-andrenko-anna/blob/main/Pract2/pzpi-24-5-andrenko-anna-pract2/code-examples-refactoring-methods.cpp#L222-L292 
+Лістинг В.4 – Код після рефакторингу (метод 2, простір імен m2_after)
+ 1  class TimerResult {
+ 2  public:
+ 3      TimerResult(const char* name, const char* header,
+ 4                  const char* unit, long double minStep)
+ 5          : name_(name), header_(header), unit_(unit), minStep_(minStep) {}
+ 6      virtual ~TimerResult() = default;
+ 7      const char* name() const { return name_; }
+ 8      const char* header() const { return header_; }
+ 9      const char* unit() const { return unit_; }
+10      long double minStep() const { return minStep_; }
+11      long double inNanoseconds() const {
+12          return minStep_ >= 0 ? convert(minStep_) : -1;
+13      }
+14  protected:
+15      virtual long double convert(long double step) const = 0;
+16  private:
+17      const char* name_;
+18      const char* header_;
+19      const char* unit_;
+20      long double minStep_;
+21  };
+22  
+23  class SecondsTimer : public TimerResult {
+24      using TimerResult::TimerResult;
+25      long double convert(long double s) const override { return s * 1.0e9L; }
+26  };
+27  class ClockTimer : public TimerResult {
+28      using TimerResult::TimerResult;
+29      long double convert(long double s) const override { return s * 1.0e9L /
+            CLOCKS_PER_SEC; }
+30  };
+31  class FileTimeTimer : public TimerResult {
+32      using TimerResult::TimerResult;
+33      long double convert(long double s) const override { return s * 100.0L; }
+34  };
+35  class TickCountTimer : public TimerResult {
+36      using TimerResult::TimerResult;
+37      long double convert(long double s) const override { return s * 1.0e6L; }
+38  };
+39  class QpcTimer : public TimerResult {
+40  public:
+41      QpcTimer(const char* name, const char* header, const char* unit,
+42               long double minStep, long double freq)
+43          : TimerResult(name, header, unit, minStep), freq_(freq) {}
+44  protected:
+45      long double convert(long double s) const override { return s * 1.0e9L /
+            freq_; }
+46  private:
+47      long double freq_;
+48  };
+49  class ChronoTimer : public TimerResult {
+50      using TimerResult::TimerResult;
+51      long double convert(long double s) const override { return s; }
+52  };
+53  class TscTimer : public TimerResult {
+54      using TimerResult::TimerResult;
+55      long double convert(long double) const override { return -1; }
+56  };
+57  
+58  static void run(long double freq, long double s) {
+59      const std::vector<std::shared_ptr<const TimerResult>> r = {
+60          std::make_shared<SecondsTimer>("time", "time.h", "seconds", s),
+61          std::make_shared<ClockTimer>("clock", "time.h", "clock ticks", s),
+62          std::make_shared<FileTimeTimer>("GetSystemTimeAsFileTime", "windows.h",
+                "100 ns ticks", s),
+63          std::make_shared<FileTimeTimer>("GetSystemTimePreciseAsFileTime",
+                "windows.h", "100 ns ticks", s),
+64          std::make_shared<TickCountTimer>("GetTickCount", "windows.h",
+                "milliseconds", s),
+65          std::make_shared<TscTimer>("__rdtsc", "intrin.h", "TSC ticks/cycles",
+                s),
+66          std::make_shared<QpcTimer>("QueryPerformanceCounter", "windows.h", "QPC
+                ticks", s, freq),
+67          std::make_shared<ChronoTimer>("chrono::high_resolution_clock", "chrono",
+                "nanoseconds", s),
+68          std::make_shared<SecondsTimer>("omp_get_wtime", "omp.h", "seconds", s)};
+69      for (const auto& e : r)
+70          std::printf("%s|%s|%s|%.6f|%.9Lf\n", e->name(), e->header(), e->unit(),
+                static_cast<double>(e->minStep()), e->inNanoseconds());
+71  }
+
+В.3 Метод 3: Replace Record with Data Class (SavedRow)
+Посилання на файл програмного коду в GitHub:
+https://github.com/NureAndrenkoAnna/ark-pzpi-24-5-andrenko-anna/blob/main/Pract2/pzpi-24-5-andrenko-anna-pract2/code-examples-refactoring-methods.cpp#L305-L327 
+Лістинг В.5 – Код до рефакторингу (метод 3, простір імен m3_before)
+ 1  struct SavedRow { double raw = 0; double objects = 0; std::string checksum; };
+ 2  bool loadFile(const std::string& filename, std::map<std::size_t, SavedRow>&
+        rows) {
+ 3      auto load = [](const std::string& filename, std::map<std::size_t,
+            SavedRow>& rows) {
+ 4              std::ifstream file(filename);
+ 5              if (!file) return false;
+ 6              std::string line;
+ 7              std::getline(file, line); // Skip CSV header
+ 8              while (std::getline(file, line)) {
+ 9                  if (line.empty()) continue;
+10                  std::istringstream in(line);
+11                  std::string nStr, rawStr, objStr, checksumStr;
+12                  if (!std::getline(in, nStr, ',') ||
+13                      !std::getline(in, rawStr, ',') ||
+14                      !std::getline(in, objStr, ',') ||
+15                      !std::getline(in, checksumStr))
+16                      throw std::runtime_error("Invalid CSV row");
+17                  std::size_t n = std::stoull(nStr);
+18                  rows[n] = { std::stod(rawStr), std::stod(objStr), checksumStr };
+19              }
+20              return !rows.empty();
+21          };
+22      return load(filename, rows);
+23  }
+     
+Посилання на файл програмного коду в GitHub:
+https://github.com/NureAndrenkoAnna/ark-pzpi-24-5-andrenko-anna/blob/main/Pract2/pzpi-24-5-andrenko-anna-pract2/code-examples-refactoring-methods.cpp#L354-L397 
+Лістинг В.6 – Код після рефакторингу (метод 3, простір імен m3_after)
+ 1  class SavedRow {
+ 2  public:
+ 3      SavedRow() = default;
+ 4      SavedRow(std::size_t n, double raw, double objects, std::string checksum)
+ 5          : n_(n), raw_(raw), objects_(objects), checksum_(std::move(checksum)) {}
+ 6  
+ 7      static SavedRow fromCsv(const std::string& line) {
+ 8          std::istringstream in(line);
+ 9          std::string nStr, rawStr, objStr, checksumStr;
+10          if (!std::getline(in, nStr, ',') ||
+11              !std::getline(in, rawStr, ',') ||
+12              !std::getline(in, objStr, ',') ||
+13              !std::getline(in, checksumStr))
+14              throw std::runtime_error("Invalid CSV row");
+15          return SavedRow(std::stoull(nStr), std::stod(rawStr),
+16                          std::stod(objStr), checksumStr);
+17      }
+18  
+19      std::size_t n() const { return n_; }
+20      double raw() const { return raw_; }
+21      double objects() const { return objects_; }
+22      const std::string& checksum() const { return checksum_; }
+23  
+24  private:
+25      std::size_t n_ = 0;
+26      double raw_ = 0;
+27      double objects_ = 0;
+28      std::string checksum_;
+29  };
+30  bool loadFile(const std::string& filename, std::map<std::size_t, SavedRow>&
+        rows) {
+31      auto load = [](const std::string& filename, std::map<std::size_t,
+            SavedRow>& rows) {
+32              std::ifstream file(filename);
+33              if (!file) return false;
+34              std::string line;
+35              std::getline(file, line); // Skip CSV header
+36              while (std::getline(file, line)) {
+37                  if (line.empty()) continue;
+38                  SavedRow row = SavedRow::fromCsv(line);
+39                  rows[row.n()] = row;
+40              }
+41              return !rows.empty();
+42          };
+43      return load(filename, rows);
+44  }
+     
+     
+В.4 Точка входу
+Посилання на файл програмного коду в GitHub:
+https://github.com/NureAndrenkoAnna/ark-pzpi-24-5-andrenko-anna/blob/main/Pract2/pzpi-24-5-andrenko-anna-pract2/code-examples-refactoring-methods.cpp#L422-L438 
+Лістинг В.7 – Функція main: запуск версій до і після
+ 1  int main(int argc, char** argv) {
+ 2      const std::string mode = argc > 1 ? argv[1] : "after";
+ 3      if (mode == "before") {
+ 4          m1_before::test();
+ 5          resetFormat();
+ 6          m2_before::test();
+ 7          resetFormat();
+ 8          m3_before::test();
+ 9      } else {
+10          m1_after::test();
+11          resetFormat();
+12          m2_after::test();
+13          resetFormat();
+14          m3_after::test();
+15      }
+16      return 0;
+17  }
+
+     2
+     
+     
+     
