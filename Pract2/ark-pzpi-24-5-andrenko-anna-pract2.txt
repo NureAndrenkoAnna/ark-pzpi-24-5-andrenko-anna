@@ -1,4 +1,4 @@
-﻿Міністерство освіти і науки України
+Міністерство освіти і науки України
 Харківський національний університет радіоелектроніки
 Факультет комп’ютерних наук
 Катедра програмної інженерії
@@ -390,7 +390,7 @@ struct SavedRow, розбір у лямбді
      
      У практичному завданні № 2 проаналізовано фрагменти власного коду лабораторної роботи 1з дисципліни «Паралельне програмування» мовою C++ та застосовано три методи рефакторингу М. Фаулера.
      Метод Convert Procedural Design to Objects об’єднав дані результатів множення матриць і операції над ними в класі MatrixTiming; дубльований вираз співвідношення тепер міститься в методі ratio(). Метод Replace Type Code with Subclasses замінив рядковий код типу таймера підкласами TimerResult, тому ланцюжок умов зник, а новий таймер додається без змін у циклі виведення. Метод Replace Record with Data Class інкапсулював запис SavedRow і зосередив розбір CSV-рядка в методі fromCsv().
-     Перетворення покращують читабельність, розширюваність і підтримуваність коду. На тестових даних виведення та CSV-файли до і після рефакторингу збігаються (3 набори даних, 63 випадки та 7 сценаріїв), однак повну програму із WinAPI та OpenMP слід додатково перевірити у Visual Studio. Ціною рефакторингу, зокрема другого методу, є збільшення обсягу коду. Швидкодію програми не оцінювали.
+     Перетворення покращують читабельність, розширюваність і підтримуваність коду. На тестових даних виведення та CSV-файли до і після рефакторингу збігаються (3 набори даних, 63 випадки та 7 сценаріїв). Ціною рефакторингу, зокрема другого методу, є збільшення обсягу коду. 
      
 
      5 ВИКОРИСТАНІ ДЖЕРЕЛА
@@ -760,8 +760,8 @@ https://github.com/NureAndrenkoAnna/ark-pzpi-24-5-andrenko-anna/blob/main/Pract2
 70          std::printf("%s|%s|%s|%.6f|%.9Lf\n", e->name(), e->header(), e->unit(),
                 static_cast<double>(e->minStep()), e->inNanoseconds());
 71  }
-
-В.3 Метод 3: Replace Record with Data Class (SavedRow)
+     
+     В.3 Метод 3: Replace Record with Data Class (SavedRow)
 Посилання на файл програмного коду в GitHub:
 https://github.com/NureAndrenkoAnna/ark-pzpi-24-5-andrenko-anna/blob/main/Pract2/pzpi-24-5-andrenko-anna-pract2/code-examples-refactoring-methods.cpp#L305-L327 
 Лістинг В.5 – Код до рефакторингу (метод 3, простір імен m3_before)
@@ -790,7 +790,6 @@ https://github.com/NureAndrenkoAnna/ark-pzpi-24-5-andrenko-anna/blob/main/Pract2
 21          };
 22      return load(filename, rows);
 23  }
-     
 Посилання на файл програмного коду в GitHub:
 https://github.com/NureAndrenkoAnna/ark-pzpi-24-5-andrenko-anna/blob/main/Pract2/pzpi-24-5-andrenko-anna-pract2/code-examples-refactoring-methods.cpp#L354-L397 
 Лістинг В.6 – Код після рефакторингу (метод 3, простір імен m3_after)
